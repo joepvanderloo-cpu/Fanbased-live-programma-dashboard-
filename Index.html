@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Coach Planning — Fanbased</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#F7F6F3;--surface:#FFFFFF;--border:#E4E2DC;--border-strong:#C8C5BC;
+  --text:#1A1916;--text-muted:#6B6860;--text-faint:#9E9B94;
+  --accent:#2A5C45;--today:rgba(210,60,40,.45);
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:13px 20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;position:sticky;top:0;z-index:100}
+.logo{font-size:14px;font-weight:700;color:var(--accent)}.logo span{font-weight:400;color:var(--text-muted)}
+.hf{display:flex;gap:7px;flex-wrap:wrap;margin-left:auto;align-items:center}
+select,input{font-size:12px;padding:4px 9px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);height:29px;outline:none;font-family:inherit}
+select:focus,input:focus{border-color:var(--accent)}
+.btn{font-size:12px;padding:0 11px;height:29px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);cursor:pointer;font-family:inherit}
+.btn:hover{background:var(--bg)}
+.btn-primary{background:var(--accent);color:#fff;border-color:transparent}
+.btn-primary:hover{background:#1e4532}
+.btn-danger{color:#b91c1c;border-color:#fca5a5}
+.btn-danger:hover{background:#fef2f2}
+.metrics{display:flex;gap:1px;background:var(--border);border-bottom:1px solid var(--border)}
+.metric{background:var(--surface);padding:10px 20px;flex:1}
+.metric-label{font-size:10px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px}
+.metric-value{font-size:20px;font-weight:700}
+.tags-bar{padding:8px 20px;display:flex;gap:5px;flex-wrap:wrap;background:var(--surface);border-bottom:1px solid var(--border)}
+.tag{font-size:11px;padding:3px 10px;border-radius:20px;border:1px solid var(--border);cursor:pointer;color:var(--text-muted);background:var(--surface)}
+.tag:hover{border-color:var(--border-strong);color:var(--text)}
+.tag.on{background:var(--accent);color:#fff;border-color:transparent}
+.main{display:flex;height:calc(100vh - 156px);min-height:400px}
+.gantt-outer{flex:1;overflow:auto;min-width:0}
+.side-panel{width:300px;flex-shrink:0;border-left:1px solid var(--border);background:var(--surface);display:flex;flex-direction:column;overflow:hidden;transition:width .2s}
+.side-panel.closed{width:0;border-left:none}
+.panel-header{padding:12px 14px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.panel-header h3{font-size:13px;font-weight:700;color:var(--text)}
+.panel-close{background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;line-height:1;padding:2px}
+.panel-close:hover{color:var(--text)}
+.panel-body{overflow-y:auto;flex:1;padding:12px 14px}
+.panel-hint{color:var(--text-faint);font-size:12px;text-align:center;padding:32px 12px;line-height:1.6}
+.prog-item{padding:8px 0;border-bottom:1px solid var(--border)}
+.prog-item:last-child{border-bottom:none}
+.prog-name{font-size:12px;font-weight:600;color:var(--text);margin-bottom:2px}
+.prog-meta{font-size:11px;color:var(--text-muted)}
+.pill{font-size:10px;padding:1px 7px;border-radius:10px;display:inline-block;margin-top:3px}
+.pill-past{background:#EAF3DE;color:#27500A}
+.pill-active{background:#E1F5EE;color:#0F6E56}
+.pill-future{background:#EEEDFE;color:#3C3489}
+.bar{position:absolute;border-radius:4px;display:flex;align-items:center;padding:0 5px;font-size:9px;font-weight:600;white-space:nowrap;overflow:hidden;z-index:2;cursor:pointer}
+.bar:hover{filter:brightness(.93)}
+.today-line{position:absolute;top:0;bottom:0;width:1.5px;background:var(--today);z-index:5;pointer-events:none}
+.avatar{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0}
+.legend{display:flex;gap:14px;align-items:center;padding:7px 20px;border-top:1px solid var(--border);background:var(--surface);font-size:11px;color:var(--text-muted);flex-wrap:wrap}
+.li{display:flex;align-items:center;gap:4px}
+/* Modals */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:200;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:var(--surface);border-radius:12px;padding:22px;width:480px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.15)}
+.modal h3{font-size:14px;font-weight:700;margin-bottom:4px}
+.modal-sub{font-size:11px;color:var(--text-muted);margin-bottom:14px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:10px}
+.form-row label{display:block;font-size:11px;color:var(--text-muted);margin-bottom:3px}
+.form-row input,.form-row select{width:100%}
+.form-full{margin-bottom:10px}
+.form-full label{display:block;font-size:11px;color:var(--text-muted);margin-bottom:3px}
+.form-full input,.form-full select{width:100%}
+.coach-checks{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.cc{display:flex;align-items:center;gap:5px;padding:4px 10px;border:1px solid var(--border);border-radius:20px;cursor:pointer;font-size:12px;color:var(--text-muted);background:var(--surface);user-select:none}
+.cc:hover{border-color:var(--border-strong)}
+.cc.on{color:#fff;border-color:transparent}
+.cc input{display:none}
+.form-msg{font-size:12px;color:#b91c1c;min-height:16px;margin-bottom:8px}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Fanbased <span>/ Coach planning</span></div>
+  <div class="hf">
+    <select id="fOffice"><option value="">Alle kantoren</option><option>Amsterdam</option><option>Eindhoven</option></select>
+    <select id="fStatus"><option value="">Alle statussen</option><option>Active</option><option>Future</option><option>Past</option></select>
+    <select id="fYear"><option value="">Alle jaren</option><option>2024</option><option>2025</option><option>2026</option></select>
+    <input type="text" id="fClient" placeholder="Zoek klant…" style="min-width:110px">
+    <button class="btn" onclick="toggleHistory()">📋 Klanten</button>
+    <button class="btn" onclick="openTeam()">👥 Team</button>
+    <button class="btn btn-primary" onclick="openAdd()">+ Programma</button>
+  </div>
+</header>
+
+<div class="metrics" id="metrics"></div>
+<div class="tags-bar" id="tagsBar"></div>
+
+<div class="main">
+  <div class="gantt-outer" id="ganttOuter"></div>
+  <div class="side-panel closed" id="sidePanel">
+    <div class="panel-header">
+      <h3 id="panelTitle">Klanthistorie</h3>
+      <button class="panel-close" onclick="closePanel()">×</button>
+    </div>
+    <div class="panel-body" id="panelBody">
+      <p class="panel-hint">Klik op een balk in de tijdlijn om te bewerken, of klik op "Klanten" voor een overzicht per klant.</p>
+    </div>
+  </div>
+</div>
+
+<div class="legend">
+  <strong style="color:var(--text)">Kantoor:</strong>
+  <div class="li"><div style="width:7px;height:7px;border-radius:50%;background:#2563eb"></div>Amsterdam</div>
+  <div class="li"><div style="width:7px;height:7px;border-radius:50%;background:#16a34a"></div>Eindhoven</div>
+  <strong style="color:var(--text);margin-left:6px">Status:</strong>
+  <div class="li"><div style="width:18px;height:7px;border-radius:3px;background:#BFDBFE"></div>Afgerond</div>
+  <div class="li"><div style="width:18px;height:7px;border-radius:3px;background:#BBF7D0"></div>Actief</div>
+  <div class="li"><div style="width:18px;height:7px;border-radius:3px;background:#FED7AA"></div>Aankomend</div>
+  <div class="li"><div style="width:2px;height:13px;background:var(--today)"></div>Vandaag</div>
+  <span style="color:var(--text-faint);margin-left:4px">· Klik op een balk om te bewerken</span>
+</div>
+
+<!-- Add modal -->
+<div class="modal-bg" id="addModal">
+  <div class="modal">
+    <h3>Programma toevoegen</h3>
+    <div class="modal-sub">Selecteer één of meer coaches</div>
+    <div class="coach-checks" id="addCoachChecks"></div>
+    <div class="form-full"><label>Klant / programmanaam</label><input type="text" id="aClient" placeholder="bijv. Van Doorne – partners gr. 9"></div>
+    <div class="form-row">
+      <div><label>Kantoor</label><select id="aOffice"><option>Amsterdam</option><option>Eindhoven</option></select></div>
+      <div></div>
+      <div><label>Startdatum</label><input type="date" id="aStart"></div>
+      <div><label>Einddatum</label><input type="date" id="aEnd"></div>
+    </div>
+    <div class="form-msg" id="aMsg"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeAdd()">Annuleren</button>
+      <button class="btn btn-primary" onclick="saveAdd()">Toevoegen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit modal -->
+<div class="modal-bg" id="editModal">
+  <div class="modal">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px">
+      <div>
+        <h3 id="eTitle" style="margin-bottom:2px"></h3>
+        <div class="modal-sub" id="eSub" style="margin-bottom:0"></div>
+      </div>
+      <button class="btn btn-danger" style="flex-shrink:0;margin-left:12px" onclick="openConfirmDelete()">Verwijderen</button>
+    </div>
+    <div class="form-full"><label>Coaches</label><div class="coach-checks" id="editCoachChecks" style="margin-top:4px"></div></div>
+    <div class="form-full"><label>Klant / programmanaam</label><input type="text" id="eClient"></div>
+    <div class="form-row">
+      <div><label>Kantoor</label><select id="eOffice"><option>Amsterdam</option><option>Eindhoven</option></select></div>
+      <div></div>
+      <div><label>Startdatum</label><input type="date" id="eStart"></div>
+      <div><label>Einddatum</label><input type="date" id="eEnd"></div>
+    </div>
+    <div class="form-msg" id="eMsg"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeEdit()">Annuleren</button>
+      <button class="btn" onclick="showClientHistory(currentProg&&currentProg.client);closeEdit()">Klanthistorie</button>
+      <button class="btn btn-primary" onclick="saveEdit()">Opslaan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm delete -->
+<div class="modal-bg" id="confirmModal">
+  <div class="modal" style="width:360px">
+    <h3>Programma verwijderen</h3>
+    <p style="font-size:12px;color:var(--text-muted);margin:10px 0 18px;line-height:1.6" id="confirmTxt"></p>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeConfirm()">Annuleren</button>
+      <button class="btn" style="background:#b91c1c;color:#fff;border-color:transparent" onclick="confirmDelete()">Verwijderen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Team modal -->
+<div class="modal-bg" id="teamModal">
+  <div class="modal" style="width:420px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <h3 style="margin-bottom:0">Team beheren</h3>
+      <button class="btn" onclick="closeTeam()">×</button>
+    </div>
+    <div id="teamList" style="margin-bottom:14px"></div>
+    <div style="border-top:0.5px solid var(--border);padding-top:12px">
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Collega toevoegen</div>
+      <div style="display:flex;gap:8px;margin-bottom:6px">
+        <input type="text" id="tName" placeholder="Naam" style="flex:1">
+        <select id="tOffice" style="flex:1"><option>Amsterdam</option><option>Eindhoven</option></select>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" style="flex:1" onclick="addCoach()">Toevoegen</button>
+      </div>
+      <div class="form-msg" id="tMsg" style="margin-top:6px"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const COLORS={
+  Sylvia:{bg:'#EEEDFE',tc:'#3C3489',bar:'#7F77DD'},
+  Marlot:{bg:'#E1F5EE',tc:'#0F6E56',bar:'#1D9E75'},
+  Joep:{bg:'#FAECE7',tc:'#712B13',bar:'#D85A30'},
+  Tim:{bg:'#FBEAF0',tc:'#72243E',bar:'#D4537E'},
+  Dennis:{bg:'#E6F1FB',tc:'#0C447C',bar:'#378ADD'},
+  Rogier:{bg:'#EAF3DE',tc:'#27500A',bar:'#639922'},
+  Michiel:{bg:'#FAEEDA',tc:'#633806',bar:'#BA7517'},
+  Julia:{bg:'#FCEBEB',tc:'#791F1F',bar:'#E24B4A'},
+  'Tim S':{bg:'#E1F5EE',tc:'#04342C',bar:'#1D9E75'},
+  Yvon:{bg:'#EEEDFE',tc:'#26215C',bar:'#534AB7'},
+  Jules:{bg:'#FAECE7',tc:'#993C1D',bar:'#D85A30'},
+};
+const MN=['Jan','Feb','Mrt','Apr','Mei','Jun','Jul','Aug','Sep','Okt','Nov','Dec'];
+const LW=130, CW=82;
+
+function ini(n){return n.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2)}
+function w2d(y,w){const d=new Date(y,0,1);const day=d.getDay();d.setDate(d.getDate()+(day<=4?1-day:8-day)+(w-1)*7);return d}
+function calcStatus(s,e){const n=new Date();return e<n?'Past':s<=n?'Active':'Future'}
+function fmtD(d){return d.toLocaleDateString('nl-NL',{month:'short',year:'numeric'})}
+function fmtDateInput(d){return d.toISOString().slice(0,10)}
+function normClient(c){return c.replace(/\s*\(.*?\)/g,'').replace(/\s+gr\.\s*\d+/gi,'').replace(/\s+groep\s*\d+/gi,'').replace(/\s+\d+$/,'').trim().toLowerCase()}
+
+const RAW=[
+  {coach:'Sylvia',office:'Amsterdam',client:'Gupta',sw:5,ew:14,year:2026},
+  {coach:'Sylvia',office:'Amsterdam',client:'Praktijkprogramma',sw:17,ew:26,year:2026},
+  {coach:'Sylvia',office:'Amsterdam',client:'SOAR',sw:40,ew:47,year:2026},
+  {coach:'Sylvia',office:'Amsterdam',client:'Van Doorne – Counsels',sw:5,ew:14,year:2026},
+  {coach:'Sylvia',office:'Amsterdam',client:'Van Doorne – partners gr. 8',sw:17,ew:26,year:2026},
+  {coach:'Sylvia',office:'Amsterdam',client:'Van Doorne – seniors gr. 1',sw:28,ew:36,year:2026},
+  {coach:'Joep',office:'Amsterdam',client:'Numidia',sw:5,ew:12,year:2026},
+  {coach:'Joep',office:'Amsterdam',client:'WMC – pilot',sw:5,ew:18,year:2026},
+  {coach:'Joep',office:'Amsterdam',client:'Van Doorne – Sanctierecht',sw:25,ew:36,year:2026},
+  {coach:'Joep',office:'Amsterdam',client:'D&B',sw:5,ew:12,year:2026},
+  {coach:'Tim',office:'Amsterdam',client:'LOA',sw:1,ew:10,year:2026},
+  {coach:'Tim',office:'Amsterdam',client:'Interfood',sw:11,ew:20,year:2026},
+  {coach:'Tim',office:'Amsterdam',client:'Kearney',sw:15,ew:26,year:2026},
+  {coach:'Rogier',office:'Amsterdam',client:'Gupta',sw:5,ew:16,year:2026},
+  {coach:'Rogier',office:'Amsterdam',client:'SOAR',sw:40,ew:47,year:2026},
+  {coach:'Rogier',office:'Amsterdam',client:'BMI – groep 1',sw:5,ew:18,year:2026},
+  {coach:'Rogier',office:'Amsterdam',client:'Mammoet',sw:22,ew:32,year:2026},
+  {coach:'Rogier',office:'Amsterdam',client:'Atlas',sw:1,ew:6,year:2026},
+  {coach:'Michiel',office:'Amsterdam',client:'Van Doorne – partners gr. 6',sw:5,ew:18,year:2026},
+  {coach:'Michiel',office:'Amsterdam',client:'Van Doorne – partners gr. 7',sw:20,ew:32,year:2026},
+  {coach:'Michiel',office:'Amsterdam',client:'Van Doorne – Counsels gr. 1',sw:5,ew:16,year:2026},
+  {coach:'Michiel',office:'Amsterdam',client:'OLYX – lead yourself',sw:17,ew:30,year:2026},
+  {coach:'Michiel',office:'Amsterdam',client:'Van Doorne – seniors gr. 2',sw:34,ew:44,year:2026},
+  {coach:'Michiel',office:'Amsterdam',client:'Van Doorne – seniors gr. 3',sw:40,ew:47,year:2026},
+  {coach:'Michiel',office:'Amsterdam',client:'D&B',sw:5,ew:14,year:2026},
+  {coach:'Michiel',office:'Amsterdam',client:'JUMP',sw:11,ew:22,year:2026},
+  {coach:'Michiel',office:'Amsterdam',client:'IWEL',sw:32,ew:40,year:2026},
+  {coach:'Julia',office:'Amsterdam',client:'Dentons – associates',sw:23,ew:35,year:2026},
+  {coach:'Julia',office:'Amsterdam',client:'WOS',sw:38,ew:46,year:2026},
+  {coach:'Julia',office:'Amsterdam',client:'BMI – groep 1',sw:5,ew:14,year:2026},
+  {coach:'Julia',office:'Amsterdam',client:'JUMP',sw:12,ew:22,year:2026},
+  {coach:'Tim S',office:'Eindhoven',client:'BMI – groep 2',sw:5,ew:18,year:2026},
+  {coach:'Tim S',office:'Eindhoven',client:'Mammoet',sw:22,ew:32,year:2026},
+  {coach:'Tim S',office:'Eindhoven',client:'Ciphix',sw:5,ew:16,year:2026},
+  {coach:'Tim S',office:'Eindhoven',client:'KNVB – voetballers',sw:18,ew:30,year:2026},
+  {coach:'Tim S',office:'Eindhoven',client:'JUMP',sw:12,ew:22,year:2026},
+  {coach:'Yvon',office:'Eindhoven',client:'BMI – groep 2',sw:5,ew:18,year:2026},
+  {coach:'Yvon',office:'Eindhoven',client:'Mammoet',sw:22,ew:36,year:2026},
+  {coach:'Yvon',office:'Eindhoven',client:'WOS',sw:38,ew:46,year:2026},
+  {coach:'Yvon',office:'Eindhoven',client:'IWEL',sw:28,ew:38,year:2026},
+  {coach:'Jules',office:'Eindhoven',client:'Numidia',sw:5,ew:18,year:2026},
+  {coach:'Jules',office:'Eindhoven',client:'Dentons – associates',sw:23,ew:35,year:2026},
+  {coach:'Jules',office:'Eindhoven',client:'SOAR',sw:38,ew:46,year:2026},
+  {coach:'Jules',office:'Eindhoven',client:'D&B',sw:5,ew:16,year:2026},
+  {coach:'Jules',office:'Eindhoven',client:'OLYX – lead others',sw:18,ew:30,year:2026},
+  {coach:'Jules',office:'Eindhoven',client:'Atlas',sw:5,ew:14,year:2026},
+  {coach:'Jules',office:'Eindhoven',client:'OLYX – lead leaders',sw:8,ew:18,year:2026},
+  {coach:'Sylvia',office:'Amsterdam',client:'De Brauw',sw:1,ew:9,year:2025},
+  {coach:'Sylvia',office:'Amsterdam',client:'SOAR',sw:10,ew:20,year:2025},
+  {coach:'Sylvia',office:'Amsterdam',client:'Van Doorne 1',sw:24,ew:36,year:2025},
+  {coach:'Sylvia',office:'Amsterdam',client:'Van Doorne 2',sw:41,ew:47,year:2025},
+  {coach:'Sylvia',office:'Amsterdam',client:'Krachtprogramma',sw:10,ew:20,year:2025},
+  {coach:'Sylvia',office:'Amsterdam',client:'Van Doorne – pilot',sw:19,ew:28,year:2025},
+  {coach:'Sylvia',office:'Amsterdam',client:'Mammoet',sw:30,ew:38,year:2025},
+  {coach:'Joep',office:'Amsterdam',client:'Van Doorne M&A',sw:6,ew:15,year:2025},
+  {coach:'Joep',office:'Amsterdam',client:'KNVB',sw:14,ew:20,year:2025},
+  {coach:'Joep',office:'Amsterdam',client:'Van Doorne 1',sw:23,ew:34,year:2025},
+  {coach:'Joep',office:'Amsterdam',client:'Van Doorne 3',sw:35,ew:44,year:2025},
+  {coach:'Joep',office:'Amsterdam',client:'Gilde 1 – Lead yourself',sw:7,ew:17,year:2025},
+  {coach:'Joep',office:'Amsterdam',client:'Van Doorne – pilot',sw:19,ew:25,year:2025},
+  {coach:'Joep',office:'Amsterdam',client:'Van Doorne M&A (2)',sw:26,ew:36,year:2025},
+  {coach:'Joep',office:'Amsterdam',client:'D&B – MT',sw:40,ew:47,year:2025},
+  {coach:'Tim',office:'Amsterdam',client:'Gilde – Lead yourself II',sw:1,ew:10,year:2025},
+  {coach:'Tim',office:'Amsterdam',client:'Mammoet',sw:28,ew:36,year:2025},
+  {coach:'Tim',office:'Amsterdam',client:'Vesper',sw:36,ew:44,year:2025},
+  {coach:'Dennis',office:'Amsterdam',client:'De Brauw',sw:1,ew:9,year:2025},
+  {coach:'Dennis',office:'Amsterdam',client:'VidaXL',sw:18,ew:32,year:2025},
+  {coach:'Dennis',office:'Amsterdam',client:'WOS',sw:40,ew:47,year:2025},
+  {coach:'Dennis',office:'Amsterdam',client:'Eraneos',sw:6,ew:16,year:2025},
+  {coach:'Dennis',office:'Amsterdam',client:'VidaXL (2e)',sw:37,ew:44,year:2025},
+  {coach:'Rogier',office:'Amsterdam',client:'De Brauw',sw:1,ew:9,year:2025},
+  {coach:'Rogier',office:'Amsterdam',client:'JUMP',sw:14,ew:24,year:2025},
+  {coach:'Rogier',office:'Amsterdam',client:'Atlas',sw:1,ew:10,year:2025},
+  {coach:'Rogier',office:'Amsterdam',client:'SOAR',sw:10,ew:20,year:2025},
+  {coach:'Michiel',office:'Amsterdam',client:'OLYX – Lead yourself',sw:3,ew:14,year:2025},
+  {coach:'Michiel',office:'Amsterdam',client:'Olyx – Lead others',sw:15,ew:26,year:2025},
+  {coach:'Michiel',office:'Amsterdam',client:'OLYX – Lead yourself (2)',sw:24,ew:36,year:2025},
+  {coach:'Michiel',office:'Amsterdam',client:'Gilde 1 – Lead yourself',sw:3,ew:14,year:2025},
+  {coach:'Michiel',office:'Amsterdam',client:'JUMP',sw:15,ew:26,year:2025},
+  {coach:'Michiel',office:'Amsterdam',client:'Mammoet',sw:27,ew:36,year:2025},
+  {coach:'Julia',office:'Amsterdam',client:'WOS',sw:39,ew:47,year:2025},
+  {coach:'Julia',office:'Amsterdam',client:'VidaXL',sw:39,ew:47,year:2025},
+  {coach:'Tim S',office:'Eindhoven',client:'Mammoet',sw:27,ew:36,year:2025},
+  {coach:'Tim S',office:'Eindhoven',client:'VidaXL',sw:36,ew:44,year:2025},
+  {coach:'Yvon',office:'Eindhoven',client:'Versterkgroep',sw:1,ew:9,year:2025},
+  {coach:'Yvon',office:'Eindhoven',client:'JUMP',sw:14,ew:24,year:2025},
+  {coach:'Yvon',office:'Eindhoven',client:'WOS – De sport van Morgen',sw:6,ew:20,year:2025},
+  {coach:'Jules',office:'Eindhoven',client:'SOAR',sw:10,ew:20,year:2025},
+  {coach:'Jules',office:'Eindhoven',client:'Versterkgroep',sw:1,ew:9,year:2025},
+  {coach:'Jules',office:'Eindhoven',client:'Olyx – Lead Teams',sw:14,ew:26,year:2025},
+  {coach:'Sylvia',office:'Amsterdam',client:'Full Circle',sw:3,ew:14,year:2024},
+  {coach:'Sylvia',office:'Amsterdam',client:'JUMP',sw:15,ew:26,year:2024},
+  {coach:'Sylvia',office:'Amsterdam',client:'Praktijkprogramma',sw:40,ew:47,year:2024},
+  {coach:'Sylvia',office:'Amsterdam',client:'Just Brands – LEAD',sw:27,ew:38,year:2024},
+  {coach:'Marlot',office:'Amsterdam',client:'TeamNL',sw:1,ew:12,year:2024},
+  {coach:'Marlot',office:'Amsterdam',client:'TeamNL (Q2)',sw:14,ew:26,year:2024},
+  {coach:'Marlot',office:'Amsterdam',client:'TeamNL (Q3)',sw:27,ew:38,year:2024},
+  {coach:'Marlot',office:'Amsterdam',client:'TeamNL (Q4)',sw:40,ew:47,year:2024},
+  {coach:'Marlot',office:'Amsterdam',client:'JUMP',sw:14,ew:26,year:2024},
+  {coach:'Marlot',office:'Amsterdam',client:'Just Brands',sw:41,ew:47,year:2024},
+  {coach:'Joep',office:'Amsterdam',client:'KNVB',sw:3,ew:14,year:2024},
+  {coach:'Joep',office:'Amsterdam',client:'Rembrandt',sw:14,ew:26,year:2024},
+  {coach:'Joep',office:'Amsterdam',client:'KNVB (Q4)',sw:40,ew:47,year:2024},
+  {coach:'Joep',office:'Amsterdam',client:'Olyx',sw:10,ew:22,year:2024},
+  {coach:'Joep',office:'Amsterdam',client:'Kearney – LEAD',sw:36,ew:44,year:2024},
+  {coach:'Tim',office:'Amsterdam',client:'Multifix',sw:1,ew:12,year:2024},
+  {coach:'Tim',office:'Amsterdam',client:'Rembrandt',sw:14,ew:26,year:2024},
+  {coach:'Tim',office:'Amsterdam',client:'VidaXL – LEAD',sw:36,ew:44,year:2024},
+  {coach:'Tim',office:'Amsterdam',client:'BlueWave',sw:1,ew:12,year:2024},
+  {coach:'Tim',office:'Amsterdam',client:'Ciphix',sw:14,ew:26,year:2024},
+  {coach:'Tim',office:'Amsterdam',client:'Just Brands',sw:41,ew:47,year:2024},
+  {coach:'Dennis',office:'Amsterdam',client:'WOS',sw:5,ew:18,year:2024},
+  {coach:'Dennis',office:'Amsterdam',client:'WOS (Q4)',sw:40,ew:47,year:2024},
+  {coach:'Dennis',office:'Amsterdam',client:'Olyx',sw:10,ew:22,year:2024},
+  {coach:'Dennis',office:'Amsterdam',client:'Eraneos – LEAD',sw:36,ew:44,year:2024},
+  {coach:'Rogier',office:'Amsterdam',client:'Full Circle',sw:3,ew:14,year:2024},
+  {coach:'Rogier',office:'Amsterdam',client:'JUMP',sw:19,ew:28,year:2024},
+  {coach:'Rogier',office:'Amsterdam',client:'Just Brands',sw:27,ew:36,year:2024},
+  {coach:'Rogier',office:'Amsterdam',client:'Just Brands (Q4)',sw:40,ew:47,year:2024},
+  {coach:'Rogier',office:'Amsterdam',client:'Schroder Capital',sw:14,ew:26,year:2024},
+  {coach:'Michiel',office:'Amsterdam',client:'Multifix',sw:1,ew:12,year:2024},
+  {coach:'Michiel',office:'Amsterdam',client:'Kearney',sw:37,ew:45,year:2024},
+  {coach:'Michiel',office:'Amsterdam',client:'Schroder Capital',sw:12,ew:24,year:2024},
+  {coach:'Michiel',office:'Amsterdam',client:'Van Doorne 2',sw:40,ew:47,year:2024},
+  {coach:'Yvon',office:'Eindhoven',client:'WOS',sw:5,ew:18,year:2024},
+  {coach:'Yvon',office:'Eindhoven',client:'WOS (Q4)',sw:40,ew:47,year:2024},
+  {coach:'Yvon',office:'Eindhoven',client:'Kracht programma',sw:7,ew:18,year:2024},
+  {coach:'Yvon',office:'Eindhoven',client:'Praktijkprogramma',sw:41,ew:47,year:2024},
+];
+
+let nextId=0;
+let programs=RAW.map(r=>{
+  const s=w2d(r.year,r.sw);
+  const e=w2d(r.year,r.ew); e.setDate(e.getDate()+4);
+  return{id:nextId++,...r,startDate:s,endDate:e,status:calcStatus(s,e)};
+});
+
+let fCoach='',fOffice='',fStatus='',fYear='',fClient='';
+let currentProg=null;
+
+// ── Helpers ──
+function mS(y,m){return new Date(y,m,1)}
+function mE(y,m){return new Date(y,m+1,0,23,59,59)}
+function seg(sd,ed,y,m){
+  const ms=mS(y,m),me=mE(y,m);
+  if(ed<ms||sd>me)return null;
+  const cs=Math.max(sd,ms),ce=Math.min(ed,me),t=me-ms;
+  return{left:(cs-ms)/t*100,width:(ce-cs)/t*100};
+}
+function buildMonths(data){
+  if(!data.length)return[];
+  const ds=data.flatMap(p=>[p.startDate,p.endDate]);
+  let a=new Date(Math.min(...ds)),b=new Date(Math.max(...ds));
+  a=new Date(a.getFullYear(),a.getMonth(),1);
+  b=new Date(b.getFullYear(),b.getMonth()+1,0);
+  const ms=[];let d=new Date(a);
+  while(d<=b){ms.push({y:d.getFullYear(),m:d.getMonth()});d=new Date(d.getFullYear(),d.getMonth()+1,1);}
+  return ms;
+}
+function getQ(ms){
+  const qs=[];let cur=null;
+  ms.forEach(m=>{const q=Math.floor(m.m/3)+1,k=m.y+'-Q'+q;if(!cur||cur.k!==k){cur={k,label:'Q'+q+' '+m.y,count:0};qs.push(cur);}cur.count++;});
+  return qs;
+}
+function barCol(p){
+  if(p.status==='Past')  return{bg:'#BFDBFE',tc:'#1e40af'};
+  if(p.status==='Active')return{bg:'#BBF7D0',tc:'#14532d'};
+  return{bg:'#FED7AA',tc:'#7c2d12'};
+}
+function getFiltered(){
+  return programs.filter(p=>
+    (!fCoach||p.coach===fCoach)&&
+    (!fOffice||p.office===fOffice)&&
+    (!fStatus||p.status===fStatus)&&
+    (!fYear||p.year==fYear)&&
+    (!fClient||p.client.toLowerCase().includes(fClient.toLowerCase()))
+  );
+}
+// ── Coach registry (name → office) ──
+const COACH_COLORS_POOL=[
+  {bg:'#EEEDFE',tc:'#3C3489',bar:'#7F77DD'},
+  {bg:'#E1F5EE',tc:'#0F6E56',bar:'#1D9E75'},
+  {bg:'#FAECE7',tc:'#712B13',bar:'#D85A30'},
+  {bg:'#FBEAF0',tc:'#72243E',bar:'#D4537E'},
+  {bg:'#E6F1FB',tc:'#0C447C',bar:'#378ADD'},
+  {bg:'#EAF3DE',tc:'#27500A',bar:'#639922'},
+  {bg:'#FAEEDA',tc:'#633806',bar:'#BA7517'},
+  {bg:'#FCEBEB',tc:'#791F1F',bar:'#E24B4A'},
+  {bg:'#E1F5EE',tc:'#04342C',bar:'#1D9E75'},
+  {bg:'#EEEDFE',tc:'#26215C',bar:'#534AB7'},
+  {bg:'#FAECE7',tc:'#993C1D',bar:'#D85A30'},
+];
+let coachRegistry=[
+  {name:'Sylvia',office:'Amsterdam'},
+  {name:'Marlot',office:'Amsterdam'},
+  {name:'Joep',office:'Amsterdam'},
+  {name:'Tim',office:'Amsterdam'},
+  {name:'Dennis',office:'Amsterdam'},
+  {name:'Rogier',office:'Amsterdam'},
+  {name:'Michiel',office:'Amsterdam'},
+  {name:'Julia',office:'Amsterdam'},
+  {name:'Tim S',office:'Eindhoven'},
+  {name:'Yvon',office:'Eindhoven'},
+  {name:'Jules',office:'Eindhoven'},
+];
+function getCoachColor(name){
+  const idx=coachRegistry.findIndex(c=>c.name===name);
+  return COACH_COLORS_POOL[idx%COACH_COLORS_POOL.length]||{bg:'#F1EFE8',tc:'#5F5E5A',bar:'#888'};
+}
+function allCoaches(){return coachRegistry.map(c=>c.name);}
+
+// ── Team modal ──
+function openTeam(){
+  renderTeamList();
+  document.getElementById('tName').value='';
+  document.getElementById('tMsg').textContent='';
+  document.getElementById('teamModal').classList.add('open');
+}
+function closeTeam(){document.getElementById('teamModal').classList.remove('open');}
+function renderTeamList(){
+  const el=document.getElementById('teamList');
+  if(!coachRegistry.length){el.innerHTML='<div style="font-size:12px;color:var(--text-muted);padding:8px 0">Nog geen coaches toegevoegd.</div>';return;}
+  el.innerHTML=coachRegistry.map((c,i)=>{
+    const col=getCoachColor(c.name);
+    const hasProg=programs.some(p=>p.coach===c.name);
+    return`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--border)">
+      <div style="width:26px;height:26px;border-radius:50%;background:${col.bg};color:${col.tc};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0">${ini(c.name)}</div>
+      <div style="flex:1">
+        <div style="font-size:12px;font-weight:500;color:var(--text)">${c.name}</div>
+        <div style="font-size:11px;color:var(--text-muted)">${c.office}${hasProg?' · '+programs.filter(p=>p.coach===c.name).length+' programma\'s':''}</div>
+      </div>
+      <button onclick="removeCoach(${i})" style="font-size:11px;padding:3px 9px;border:0.5px solid #fca5a5;border-radius:6px;background:var(--surface);color:#b91c1c;cursor:pointer" title="Verwijderen">×</button>
+    </div>`;
+  }).join('');
+}
+function addCoach(){
+  const name=document.getElementById('tName').value.trim();
+  const office=document.getElementById('tOffice').value;
+  const msg=document.getElementById('tMsg');
+  if(!name){msg.textContent='Vul een naam in.';return;}
+  if(coachRegistry.some(c=>c.name.toLowerCase()===name.toLowerCase())){msg.textContent='Deze naam bestaat al.';return;}
+  coachRegistry.push({name,office});
+  document.getElementById('tName').value='';
+  msg.textContent='';
+  renderTeamList();render();
+}
+function removeCoach(idx){
+  const c=coachRegistry[idx];
+  if(programs.some(p=>p.coach===c.name)){
+    if(!confirm(`${c.name} heeft nog actieve programma's. Toch verwijderen uit het team?`))return;
+  }
+  coachRegistry.splice(idx,1);
+  renderTeamList();render();
+}
+document.getElementById('teamModal').onclick=e=>{if(e.target===e.currentTarget)closeTeam();};
+
+// ── Metrics ──
+function renderMetrics(data){
+  const ac=data.filter(p=>p.status==='Active').length;
+  const fu=data.filter(p=>p.status==='Future').length;
+  const pa=data.filter(p=>p.status==='Past').length;
+  const co=[...new Set(data.map(p=>p.coach))].length;
+  document.getElementById('metrics').innerHTML=
+    `<div class="metric"><div class="metric-label">Actief nu</div><div class="metric-value" style="color:#1a6644">${ac}</div></div>`+
+    `<div class="metric"><div class="metric-label">Aankomend</div><div class="metric-value" style="color:#3730a3">${fu}</div></div>`+
+    `<div class="metric"><div class="metric-label">Afgerond</div><div class="metric-value" style="color:var(--text-muted)">${pa}</div></div>`+
+    `<div class="metric"><div class="metric-label">Coaches</div><div class="metric-value">${co}</div></div>`;
+}
+
+// ── Tags ──
+function buildTags(){
+  const bar=document.getElementById('tagsBar');bar.innerHTML='';
+  allCoaches().forEach(c=>{
+    const t=document.createElement('span');t.className='tag'+(fCoach===c?' on':'');
+    t.textContent=c;t.onclick=()=>{fCoach=fCoach===c?'':c;render();};
+    bar.appendChild(t);
+  });
+}
+
+// ── Gantt render ──
+function render(){
+  buildTags();
+  const data=getFiltered();
+  renderMetrics(data);
+  const outer=document.getElementById('ganttOuter');
+  if(!data.length){outer.innerHTML='<div style="padding:48px;text-align:center;color:var(--text-muted);font-size:13px">Geen programmas gevonden.</div>';return;}
+  const months=buildMonths(data);
+  const quarters=getQ(months);
+  const now=new Date();
+  const coaches=[...new Set(data.map(p=>p.coach))];
+  const TW=LW+months.length*CW;
+
+  let h=`<div style="min-width:${TW}px">`;
+
+  // Sticky header
+  h+=`<div style="position:sticky;top:0;z-index:20;background:#fff">`;
+  // Quarter row
+  h+=`<div style="display:flex">`;
+  h+=`<div style="width:${LW}px;flex-shrink:0;height:22px;background:#F0EFE9;border-right:2px solid var(--border-strong);border-bottom:1px solid var(--border);position:sticky;left:0;z-index:21"></div>`;
+  quarters.forEach(q=>{
+    h+=`<div style="width:${q.count*CW}px;flex-shrink:0;height:22px;display:flex;align-items:center;padding-left:10px;background:#F0EFE9;font-size:10px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border);border-right:2px solid var(--border-strong)">${q.label}</div>`;
+  });
+  h+=`</div>`;
+  // Month row
+  h+=`<div style="display:flex">`;
+  h+=`<div style="width:${LW}px;flex-shrink:0;height:26px;background:#F7F6F3;border-right:2px solid var(--border-strong);border-bottom:1px solid var(--border);position:sticky;left:0;z-index:21;display:flex;align-items:center;padding-left:12px;font-size:10px;font-weight:600;color:var(--text-muted)">Coach</div>`;
+  months.forEach((m,i)=>{
+    const isQ=(m.m+1)%3===0||i===months.length-1;
+    const isT=now.getFullYear()===m.y&&now.getMonth()===m.m;
+    h+=`<div style="width:${CW}px;flex-shrink:0;height:26px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:${isT?700:400};color:${isT?'var(--text)':'var(--text-faint)'};background:${isT?'rgba(210,60,40,.06)':'#F7F6F3'};border-bottom:1px solid var(--border);border-right:${isQ?'2px solid var(--border-strong)':'1px solid var(--border)'}">${MN[m.m]}</div>`;
+  });
+  h+=`</div></div>`;
+
+  // Timeline boundaries in ms (first day of first month .. last day of last month)
+  const tlStart = mS(months[0].y, months[0].m);
+  const tlEnd   = mE(months[months.length-1].y, months[months.length-1].m);
+  const tlMs    = tlEnd - tlStart;
+  const totalGridW = months.length * CW;
+
+  function px(date){ return Math.max(0, (date - tlStart) / tlMs * totalGridW); }
+
+  // Today line pixel offset
+  const todayPx = now >= tlStart && now <= tlEnd ? px(now) : null;
+
+  // Coach rows
+  coaches.forEach(coach=>{
+    const col=getCoachColor(coach);
+    const rows=data.filter(p=>p.coach===coach);
+    const office=rows[0].office;
+
+    // Assign tracks: pack non-overlapping programs onto same lane
+    const tracks=[];
+    rows.sort((a,b)=>a.startDate-b.startDate).forEach(p=>{
+      let lane=tracks.findIndex(endDate=>endDate<=p.startDate);
+      if(lane===-1){lane=tracks.length;tracks.push(null);}
+      tracks[lane]=p.endDate;
+      p._lane=lane;
+    });
+    const numLanes=Math.max(tracks.length,1);
+    const barH=11;
+    const ROW_H=numLanes*barH+(numLanes-1)*2+10;
+
+    // Coach label cell (sticky left)
+    h+=`<div style="display:flex;background:#FAFAF8;border-bottom:1px solid var(--border-strong)">`;
+    h+=`<div style="width:${LW}px;flex-shrink:0;height:${ROW_H}px;display:flex;align-items:center;gap:6px;padding:0 8px;background:#FAFAF8;border-right:2px solid var(--border-strong);position:sticky;left:0;z-index:10">`;
+    h+=`<div class="avatar" style="width:18px;height:18px;font-size:8px;background:${col.bg};color:${col.tc}">${ini(coach)}</div>`;
+    h+=`<span style="font-size:11px;font-weight:700;color:var(--text)">${coach}</span>`;
+    h+=`<div style="width:6px;height:6px;border-radius:50%;background:${office==='Amsterdam'?'#2563eb':'#16a34a'};flex-shrink:0"></div>`;
+    h+=`</div>`;
+
+    // One big relative container for the whole grid row
+    h+=`<div style="position:relative;height:${ROW_H}px;width:${totalGridW}px;flex-shrink:0">`;
+
+    // Month grid lines
+    months.forEach((m,i)=>{
+      const isQ=(m.m+1)%3===0||i===months.length-1;
+      const isT=now.getFullYear()===m.y&&now.getMonth()===m.m;
+      h+=`<div style="position:absolute;left:${i*CW}px;width:${CW}px;top:0;bottom:0;border-right:${isQ?'2px solid var(--border-strong)':'1px solid var(--border)'};background:${isT?'rgba(210,60,40,.03)':'transparent'};pointer-events:none"></div>`;
+    });
+
+    // Today line
+    if(todayPx!==null){
+      h+=`<div style="position:absolute;left:${todayPx}px;top:0;bottom:0;width:1.5px;background:var(--today);z-index:4;pointer-events:none"></div>`;
+    }
+
+    // Continuous bars
+    rows.forEach(p=>{
+      const bc=barCol(p);
+      const left=px(p.startDate);
+      const right=px(p.endDate);
+      const w=Math.max(right-left-2, 4);
+      const lane=p._lane||0;
+      const top=(ROW_H-numLanes*barH-(numLanes-1)*2)/2 + lane*(barH+2);
+      h+=`<div class="bar" style="left:${left+1}px;width:${w}px;top:${top}px;height:${barH}px;background:${bc.bg};color:${bc.tc};z-index:3" onclick="openEditById(${p.id})" title="${p.client} — ${p.coach}">${w>40?p.client:''}</div>`;
+    });
+
+    h+=`</div></div>`;
+  });
+
+  h+=`</div>`;
+  outer.innerHTML=h;
+}
+
+// ── Add modal ──
+function openAdd(){
+  const wrap=document.getElementById('addCoachChecks');
+  wrap.innerHTML='';
+  allCoaches().forEach(c=>{
+    const col=getCoachColor(c);
+    const lbl=document.createElement('label');
+    lbl.className='cc';lbl.innerHTML=`<input type="checkbox" value="${c}">${c}`;
+    lbl.onclick=function(e){
+      e.preventDefault();
+      const cb=this.querySelector('input');cb.checked=!cb.checked;
+      if(cb.checked){this.classList.add('on');this.style.background=col.bar;}
+      else{this.classList.remove('on');this.style.background='';}
+    };
+    wrap.appendChild(lbl);
+  });
+  document.getElementById('aClient').value='';
+  document.getElementById('aStart').value='';
+  document.getElementById('aEnd').value='';
+  document.getElementById('aMsg').textContent='';
+  document.getElementById('addModal').classList.add('open');
+}
+function closeAdd(){document.getElementById('addModal').classList.remove('open');}
+function saveAdd(){
+  const coaches=[...document.querySelectorAll('#addCoachChecks input:checked')].map(c=>c.value);
+  const client=document.getElementById('aClient').value.trim();
+  const office=document.getElementById('aOffice').value;
+  const start=document.getElementById('aStart').value;
+  const end=document.getElementById('aEnd').value;
+  const msg=document.getElementById('aMsg');
+  if(!coaches.length){msg.textContent='Selecteer minimaal één coach.';return;}
+  if(!client||!start||!end){msg.textContent='Vul alle velden in.';return;}
+  const sd=new Date(start),ed=new Date(end);
+  if(ed<=sd){msg.textContent='Einddatum moet na startdatum.';return;}
+  coaches.forEach(coach=>{programs.push({id:nextId++,coach,office,client,startDate:sd,endDate:ed,year:sd.getFullYear(),status:calcStatus(sd,ed)});});
+  closeAdd();render();
+}
+document.getElementById('addModal').onclick=e=>{if(e.target===e.currentTarget)closeAdd();};
+
+// ── Edit modal ──
+function openEditById(id){
+  currentProg=programs.find(p=>p.id===id);
+  if(!currentProg)return;
+  document.getElementById('eTitle').textContent=currentProg.client;
+  document.getElementById('eSub').textContent=`${currentProg.coach} · ${fmtD(currentProg.startDate)} – ${fmtD(currentProg.endDate)}`;
+
+  // Find all sibling programs (same client + same dates) to show which coaches are already on this program
+  const siblings=programs.filter(p=>
+    p.client===currentProg.client &&
+    p.startDate.getTime()===currentProg.startDate.getTime() &&
+    p.endDate.getTime()===currentProg.endDate.getTime()
+  );
+  const activeCoaches=new Set(siblings.map(p=>p.coach));
+
+  const wrap=document.getElementById('editCoachChecks');
+  wrap.innerHTML='';
+  allCoaches().forEach(c=>{
+    const col=getCoachColor(c);
+    const lbl=document.createElement('label');
+    lbl.className='cc'+(activeCoaches.has(c)?' on':'');
+    if(activeCoaches.has(c))lbl.style.background=col.bar;
+    lbl.innerHTML=`<input type="checkbox" value="${c}"${activeCoaches.has(c)?' checked':''}>${c}`;
+    lbl.onclick=function(e){
+      e.preventDefault();
+      const cb=this.querySelector('input');cb.checked=!cb.checked;
+      if(cb.checked){this.classList.add('on');this.style.background=col.bar;}
+      else{this.classList.remove('on');this.style.background='';}
+    };
+    wrap.appendChild(lbl);
+  });
+
+  document.getElementById('eClient').value=currentProg.client;
+  document.getElementById('eOffice').value=currentProg.office;
+  document.getElementById('eStart').value=fmtDateInput(currentProg.startDate);
+  document.getElementById('eEnd').value=fmtDateInput(currentProg.endDate);
+  document.getElementById('eMsg').textContent='';
+  document.getElementById('editModal').classList.add('open');
+}
+function closeEdit(){document.getElementById('editModal').classList.remove('open');}
+function saveEdit(){
+  const selectedCoaches=[...document.querySelectorAll('#editCoachChecks input:checked')].map(c=>c.value);
+  const client=document.getElementById('eClient').value.trim();
+  const office=document.getElementById('eOffice').value;
+  const start=document.getElementById('eStart').value;
+  const end=document.getElementById('eEnd').value;
+  const msg=document.getElementById('eMsg');
+  if(!selectedCoaches.length){msg.textContent='Selecteer minimaal één coach.';return;}
+  if(!client||!start||!end){msg.textContent='Vul alle velden in.';return;}
+  const sd=new Date(start),ed=new Date(end);
+  if(ed<=sd){msg.textContent='Einddatum moet na startdatum.';return;}
+
+  // Remove all sibling programs (same client+dates) and recreate for selected coaches
+  const siblings=programs.filter(p=>
+    p.client===currentProg.client &&
+    p.startDate.getTime()===currentProg.startDate.getTime() &&
+    p.endDate.getTime()===currentProg.endDate.getTime()
+  );
+  const siblingIds=new Set(siblings.map(p=>p.id));
+  programs=programs.filter(p=>!siblingIds.has(p.id));
+  selectedCoaches.forEach(coach=>{
+    programs.push({id:nextId++,coach,office,client,startDate:sd,endDate:ed,year:sd.getFullYear(),status:calcStatus(sd,ed)});
+  });
+  closeEdit();render();
+}
+document.getElementById('editModal').onclick=e=>{if(e.target===e.currentTarget)closeEdit();};
+
+// ── Delete ──
+function openConfirmDelete(){
+  closeEdit();
+  if(!currentProg)return;
+  document.getElementById('confirmTxt').textContent=`Weet je zeker dat je "${currentProg.client}" (${currentProg.coach}) wilt verwijderen? Dit kan niet ongedaan worden gemaakt.`;
+  document.getElementById('confirmModal').classList.add('open');
+}
+function closeConfirm(){document.getElementById('confirmModal').classList.remove('open');}
+function confirmDelete(){
+  // Remove current prog + all siblings with same client+dates
+  const sd=currentProg.startDate.getTime(), ed=currentProg.endDate.getTime();
+  programs=programs.filter(p=>!(p.client===currentProg.client && p.startDate.getTime()===sd && p.endDate.getTime()===ed));
+  currentProg=null;closeConfirm();render();
+}
+document.getElementById('confirmModal').onclick=e=>{if(e.target===e.currentTarget)closeConfirm();};
+
+// ── Client history panel ──
+function showClientHistory(clientName){
+  if(!clientName)return;
+  const norm=normClient(clientName);
+  const matches=programs.filter(p=>normClient(p.client)===norm).sort((a,b)=>a.startDate-b.startDate);
+  const displayName=matches.reduce((a,b)=>b.client.length>a.length?b.client:a,'');
+  document.getElementById('panelTitle').textContent=displayName.replace(/\s*–.*$/,'');
+  const coaches=[...new Set(matches.map(p=>p.coach))];
+  let html=`<div style="font-size:11px;color:var(--text-muted);margin-bottom:12px">${matches.length} programma's · ${coaches.join(', ')}</div>`;
+  const byYear={};matches.forEach(p=>{if(!byYear[p.year])byYear[p.year]=[];byYear[p.year].push(p);});
+  Object.keys(byYear).sort((a,b)=>b-a).forEach(year=>{
+    html+=`<div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin:12px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--border)">${year}</div>`;
+    byYear[year].forEach(p=>{
+      const bc=barCol(p);
+      const pillCls='pill pill-'+p.status.toLowerCase();
+      html+=`<div class="prog-item" style="cursor:pointer" onclick="openEditById(${p.id})">
+        <div class="prog-name">${p.client}</div>
+        <div class="prog-meta">${p.coach} · ${fmtD(p.startDate)} – ${fmtD(p.endDate)}</div>
+        <span class="${pillCls}">${p.status==='Past'?'Afgerond':p.status==='Active'?'Actief':'Aankomend'}</span>
+      </div>`;
+    });
+  });
+  document.getElementById('panelBody').innerHTML=html;
+  document.getElementById('sidePanel').classList.remove('closed');
+}
+function closePanel(){document.getElementById('sidePanel').classList.add('closed');}
+
+function toggleHistory(){
+  const panel=document.getElementById('sidePanel');
+  if(!panel.classList.contains('closed')){closePanel();return;}
+  const clientMap={};
+  programs.forEach(p=>{const k=normClient(p.client);if(!clientMap[k])clientMap[k]={name:p.client,count:0,coaches:new Set(),years:new Set()};clientMap[k].count++;clientMap[k].coaches.add(p.coach);clientMap[k].years.add(p.year);if(p.client.length>clientMap[k].name.length)clientMap[k].name=p.client;});
+  const sorted=Object.entries(clientMap).sort((a,b)=>b[1].count-a[1].count);
+  document.getElementById('panelTitle').textContent='Alle klanten';
+  let html=`<div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">${sorted.length} klanten</div>`;
+  sorted.forEach(([k,v])=>{
+    const safe=v.name.replace(/'/g,"\\'");
+    html+=`<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid #f0efe9;cursor:pointer" onclick="showClientHistory('${safe}')">
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--text)">${v.name.replace(/\s*–.*$/,'').replace(/\s*\(.*?\)/g,'').replace(/\s+gr\.\s*\d+/gi,'').replace(/\s+\d+$/,'')}</div>
+        <div style="font-size:11px;color:var(--text-muted)">${[...v.years].sort().join(', ')} · ${[...v.coaches].join(', ')}</div>
+      </div>
+      <div style="font-size:11px;color:var(--text-faint);flex-shrink:0;margin-left:8px">${v.count}×</div>
+    </div>`;
+  });
+  document.getElementById('panelBody').innerHTML=html;
+  panel.classList.remove('closed');
+}
+
+// ── Filter listeners ──
+document.getElementById('fOffice').onchange=e=>{fOffice=e.target.value;render()};
+document.getElementById('fStatus').onchange=e=>{fStatus=e.target.value;render()};
+document.getElementById('fYear').onchange=e=>{fYear=e.target.value;render()};
+document.getElementById('fClient').oninput=e=>{fClient=e.target.value;render()};
+
+render();
+</script>
+</body>
+</html>
